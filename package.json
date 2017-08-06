@@ -1,0 +1,35 @@
+{
+  "name": "token-session",
+  "description": "Token Session for REST. No cookies. MongoDB/Redis/Others Session Storage",
+  "author": {
+    "name": "Gustavo Gretter",
+    "url": "www.gustavogretter.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/innovajs/token-session.git"
+  },
+  "version": "1.0.0",
+  "_npmVersion": "1.0.0",
+  "keywords": [
+    "sessions",
+    "sessions",
+    "express",
+    "mongodb",
+    "mongoose",
+    "redis",
+    "cookies"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/innovajs/token-session#readme",
+  "main": "index.js",
+  "dependencies": {
+    "session-memory-store": "~0.2.2",
+    "uid-safe": "~2.1.4"
+  },
+  "devDependencies": {
+    "connect-redis": "",
+    "connect-mongo": "",
+    "express-mysql-session": ""
+  }
+}
