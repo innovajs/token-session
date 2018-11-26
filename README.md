@@ -1,10 +1,12 @@
 # token-session
 
-### Token-session is a node.js framework for managing sessions without cookies or other externals elements, specially designed for *REST services*, *time limited code validations* and others UID with expirations application, with or without data.
+###  Sessions without cookies, specially designed for *REST services*; *time limited code validations* like email verification, temporaly links, etc., and much more.
+
+#### Version 1.1.0 added Promise support and Express intregration.
 
 Session data is stored server-side. 
 
-Inspired by express-session, token-session is compatible with the *session store implementations* of express-session like **connect-redis, connect-mongo, express-mysql-session, session-memory-store, etc**.
+token-session is compatible with the *session store implementations* of express-session like **connect-redis, connect-mongo, express-mysql-session, session-memory-store, etc**.
 
 *session-memory-store* is the default storage. Note that it can only be used in a single node of node.js, not being suitable for clusters.
 
@@ -27,11 +29,84 @@ $ npm install token-session
 ```js
 var TokenSession = require('token-session');
 var tokenSession = new TokenSession({options});
+//Save tokenSession for future uses.
 ```
 
-### options
+**NOTE: You must save tokenSession for future uses.**  
+If you use Express, TokenSession express middelware, `tokenSession.express`, dose it for you. *See next topic*.
+
+## ExpressJs integration
+
+```js
+var TokenSession = require('token-session');
+var tokenSession = new TokenSession({options});
+var express = require('express');
+var app = express();
+app.use(tokenSession.express);
+
+```
+### Example
+
+
+
+### OPTIONS
 
 `token-session` accepts these properties in the options object.
+
+#### store
+
+The session store instance. Defaults is instance of session-memory-store.
+
+For a list of stores, see [compatible session stores](#compatible-session-stores).
+
+Example for connect-redis:
+
+```js
+var TokenSession = require('token-session');
+var RedisStore = require('connect-redis')(TokenSession);
+var tokenSession = new TokenSession({options});
+
+//Create a TokenSession object.
+//We recomend persist this object for future use inted create each time.
+var tokenSession = new TokenSession({
+  autoTouch: true,
+  store: new RedisStore({
+    host: '127.0.0.1',
+    ttl: 60,
+    logErrors: true,
+    prefix: 'tokensess:',
+    pass: 'if established'
+  })
+});
+
+//Data to store in session
+let myData = {
+  name:'jhon', 
+  count:0
+};
+
+//Create new session with stored data
+tokenSession.newSession(myData)
+.then(function(sid) {
+  console.log(sid); //sessionId
+})
+.catch(function(err) {
+  
+});
+
+// ........
+
+// Retrive data by token.
+tokenSession.get(sid)
+.then(function(data) {
+  console.log(data);
+})
+.catch(function(err){
+
+});
+
+
+```
 
 #### genid
 
@@ -57,32 +132,13 @@ var tokenSession = new TokenSession({
 
 If true, TokenSession.touch () is automatically invoked when TokenSession.get () is invoked
 
-The default value is `true`,
+The default value is `true`.
 
-##### store
+#### hackttl
 
-The session store instance. Defaults is instance of session-memory-store.
+Optional. Because the "Express Session Store" does not have the setWttl (sid, data, ttl) method, this hack provided a mechanism to support this new functionality.
 
-For a list of stores, see [compatible session stores](#compatible-session-stores).
-
-Example for connect-redis:
-
-```js
-var tokenSession = new TokenSession({
-  autoTouch: true,
-  store: new RedisStore({
-    host: '127.0.0.1',
-    ttl: 60,
-    logErrors: true,
-    prefix: 'tokensess:',
-    pass: 'if established'
-  })
-});
-```
-
-##### hackttl
-
-here description
+Default function is provided by TokenSession.
 
 ## token-session Methods
 

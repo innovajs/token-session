@@ -3,14 +3,14 @@
   "description": "Token Session for REST. No cookies. MongoDB/Redis/Others Session Storage",
   "author": {
     "name": "Gustavo Gretter",
-    "url": "www.gustavogretter.com"
+    "url": "http://www.gustavogretter.com"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/innovajs/token-session.git"
   },
-  "version": "1.0.0",
-  "_npmVersion": "1.0.0",
+  "version": "1.1.0",
+  "_npmVersion": "1.1.0",
   "keywords": [
     "sessions",
     "sessions",

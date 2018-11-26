@@ -1,6 +1,6 @@
 /*!
  * token-session 
- * version 0.1.0
+ * version 1.1.0
  * Copyright(c) 2017 Gustavo Gretter
  * MIT Licensed
  */
@@ -11,6 +11,26 @@ var uid = require('uid-safe').sync;
 var MemoryStore = require('./memory');
 var Store = require('./store');
 var noop = function(){};
+
+function withCallback(promise, callabck) {
+  if (callabck) {
+    promise
+      .then(res => callabck(null, res))
+      .catch(callabck)
+  }
+  return promise
+}
+
+function wrapData(data) {
+  return {
+    cookie:{maxAge:0}, //Redis connect compatibility
+    data:data
+  }
+}
+
+function unWrap(data) {
+  return data.data;
+}
 
 /**
  * Generate a session ID for a new session.
@@ -25,6 +45,18 @@ function generateSessionId() {
 
 class TokenSession {
   
+  /**
+   * Construct a new TokenSession
+   * all options are optionals.
+   * option: {
+   *    store
+   *    autoTouch
+   *    hackttl
+   *    cookie
+   *    reqSession //name of session object added to request; ej: req.tks        
+   * }
+   * @param {} options 
+   */
   constructor(options) {
     let opts = options || {};
     // get the session id generate function
@@ -49,6 +81,12 @@ class TokenSession {
     
     //Only for compatibility with express sessions stores.
     this.cookie={maxAge:0}; 
+
+    if (opts.reqSession) this.reqSession = opts.reqSession;
+    else this.reqSession = 'tks';
+
+    if (opts.header) this.header = opts.header;
+    else (this.header = 'token-session');
   }
   
   /**
@@ -80,104 +118,123 @@ class TokenSession {
   }
   
   /**
-   * Generate a session ID an return it in callback value.
+   * Generate a new session ID.
+   * Return a Promise or optionally, if presents, execute the callback.
    * 
    * @param {Function} callback - callback(err, sessionId)
    */
-  newSessionId(callabck) {
-    let sid = this.generateSessionId();
-    process.nextTick(()=>{
-      callabck(null, sid);
+  newSessionId(callback) {
+    let promise = new Promise( (resolve, reject) => {
+      let sid = this.generateSessionId();
+      process.nextTick(()=>{
+        resolve (sid);
+      });
     });
+    return withCallback(promise, callback);
   }
-  
+
   /**
-   * Create the given session object associated with a new sessionId with default ttl.
+   * Create a new session with associated data.
+   * ttl is optional. If it is not present, the value specified in the configuration is used.
+   * Callback is also optional. 
+   * Return the session id in a Promise or optionally, if presents, execute the callback.
    * 
-   * @param {Obj} data - Session data object.
-   * @param {Function} callback - callback(err, result) being result {sessionId, data}
+   * @param {*} data 
+   * @param {*} ttl 
+   * @param {*} callback 
    */
-  new(data, callback) {
-    let sid = this.generateSessionId();
-    this.set(sid, data, (err, data) => {
-      if (!err) {
-        let res = {sessionId: sid, data: data};
-        callback(null, res);
+  newSession(data, ttl, callback) {
+    let promise = new Promise( (resolve, reject) => {
+      let sid = this.generateSessionId();
+      let ret;
+      if (typeof ttl == 'number') {
+        ret = this.setWttl(sid, data, ttl)
       } else {
-        callback(err);
+        ret = this.set(sid, data)
       }
+      ret.then ( () => {
+          resolve(sid)
+      }).catch (reject);
     });
+    return withCallback(promise, callback);
   }
-  
-  /**
-   * Create the given session object associated with a new sessionId with a specific ttl.
-   * Test only on connect-redis, connect-mongo, express-mysql-session and session-memory-store.
-   * 
-   * @param {Obj} data - Session data object.
-   * @param {Function} callback - callback(err, result) being result {sessionId, data}
-   */
-  newWttl(data, ttl, callback) {
-    let sid = this.generateSessionId();
-    this.setWttl(sid, data, ttl, (err, data) => {
-      if (!err) {
-        let res = {sessionId: sid, data: data};
-        callback(null, res);
-      } else {
-        callback(err);
-      }
-    });
-  }
-  
+
   /**
    * Attempt to fetch session by the given sid.
-   *
+   * Return a Promise or optionally, if presents, execute the callback.
+   * 
    * @param {String} sid
    * @param {Function} callback
    * @api public
    */
   get(sid, callback) {
-    if (this.autoTouch) {
-      this.getNtouch(sid, callback);
-    } else {
-      this.store.get(sid, callback);
-    } 
+    let promise = new Promise ( (resolve, reject) => {
+      if (this.autoTouch) {
+        this.getNtouch(sid)
+        .then( (data) => {
+          resolve(data);
+        })
+        .catch(reject);
+      } else {
+        this.store.get(sid, (err, data) => {
+          if (err) reject(err);
+          else resolve(unWrap(data));
+        });
+      } 
+    });
+    return withCallback(promise, callback); 
   }
   
   /**
    * Attempt to fetch session by the given sid and if success touch it.
+   * Return a Promise or optionally, if presents, execute the callback. 
    *
    * @param {String} sid
    * @param {Function} callback
    * @api public
    */
   getNtouch(sid, callback) {
-    this.store.get(sid, (err, data) => {
-      if (!err) {
-        this.touch(sid, data);
-        callback(null, data);
-      } else {
-        callback(err);
-      }
-    });
+    let promise = new Promise( (resolve, reject) => {
+      this.store.get(sid, (err, data) => {
+        if (!err) {
+          if (data) {
+            this.touch(sid, data);
+            resolve(unWrap(data));
+          } else {
+            resolve(null);
+          }
+        } else {
+          reject(err);
+        }
+      });      
+    } );
+    return withCallback(promise, callback);
   }
   
   /**
    * Commit the given session data associated with the given sid.
    * This method use default store ttl.
-   *     
+   * Return a Promise or optionally, if presents, execute the callback.
+   *
    * @param {String} sid
    * @param {Object} data
    * @param {Function} callback
    * @api public
    */
   set(sid, data, callback) {
-    if (!data.cookie) data.cookie={maxAge:0}; //Redis connect compatibility
-    this.store.set(sid, data, callback);
+    let promise = new Promise ( (resolve, reject) => {
+      this.store.set(sid, wrapData(data), (err) => {
+        if (err) reject(err);
+        else resolve(data);
+      });
+    });
+    return withCallback(promise, callback);
   } 
   
   /**
    * Commit the given session object associated with the given sid with specific ttl.
    * Test only on connect-redis, connect-mongo, express-mysql-session and session-memory-store.
+   * Return a Promise or optionally, if presents, execute the callback. 
    * 
    * @param {String} sid
    * @param {Object} data
@@ -185,37 +242,46 @@ class TokenSession {
    * @api public
    */
   setWttl(sid, data, ttl, callback) {
-
-    //Save current ttl value
-    let oldttl = this.hackttl(this);
-    
-    //Set new ttl value
-    this.hackttl(this, ttl);
-    
-    //Redis connect compatibility
-    if (!data.cookie) data.cookie={maxAge:this.maxAge}; 
-    
-    //Store de value
-    this.store.set(sid, data, callback);
-    
-    //Restore ttl value
-    this.hackttl(this, oldttl);
+    let promise = new Promise ( (resolve, reject) => {
+      //Save current ttl value
+      let oldttl = this.hackttl(this);
+      //Set new ttl value
+      this.hackttl(this, ttl);      
+      //Redis connect compatibility
+      if (!data.cookie) data.cookie={maxAge:this.maxAge}; 
+      //Store de value
+      this.store.set(sid, wrapData(data), (err, data) => {
+        //Restore ttl value
+        this.hackttl(this, oldttl);
+        if (err) reject;
+        else resolve(data);
+      } );
+    } );
+    return withCallback(promise, callback);
   }
   
   /**
    * Destroy the session associated with the given `sid`.
+   * Return a Promise or optionally, if presents, execute the callback. 
    * 
    * @param {String} sid
    * @param {Function} callback
    * @api public
    */
   destroy(sid, callback) {
-    this.store.destroy(sid, callback);
+    let promise = new Promise ( (resolve, reject) => {
+      this.store.destroy(sid, (err, data) => {
+        if (err) reject(err);
+        else resolve(data);
+      });
+    } );
+    return withCallback(promise, callback);
   }
   
   /**
    * Regenerate this session.
-   * new sessionId is returned in callback result.
+   * Return a Promise or optionally or, if presents, execute the callback.
+   * new sessionId is returned in both cases.
    * 
    * @param {String} sid
    * @param {Object} data
@@ -223,13 +289,19 @@ class TokenSession {
    * @api public
    */
   regenerate(sid, data, callback) {
-    this.destroy(sid, (err, result) => {
-      let newSid = this.newSessionId();
-      this.set(newSid, data, (err, result) => {
-        if (err) callback(err);
-        else callback(null, newSid);
-      });
-    });
+    let promise = new Promise ( (resolve, reject) => {
+      this.destroy(sid)
+      .then( (result) => {
+        let newSid = this.generateSessionId();
+        this.set(newSid, data)
+        .then ( () => {
+          resolve(newSid);
+        })
+        .catch (reject);
+      })
+      .catch(reject);
+    } );
+    return withCallback ( promise, callback );
   }
   
   /**
@@ -241,8 +313,95 @@ class TokenSession {
    * @api public
    */
   touch(sid, data, callback) {
-    if (this.store.touch) {
-      this.store.touch(sid, data, callback);
+    let promise = new Promise ( (resolve, response) => {
+      if (this.store.touch) {
+        this.store.touch(sid, wrapData(data), (err) => {
+          if (err) reject(err)
+          else resolve(data);
+        } );
+      } else {
+        resolve();
+      }  
+    }); 
+  }
+
+    /**
+   * Deprecated. Use newSession(data)
+   * 
+   * @deprecated
+   */
+  new(data, callback) {
+    console.warn('token-session.new(...) is deprectad. User newSession(...)')
+    let promise = new Promise( (resolve, reject) => {
+      let sid = this.generateSessionId();
+      this.set(sid, data)
+      .then ( () => {
+        resolve({sessionId: sid, data: data})
+      })
+      .catch (reject);
+    });
+    return withCallback(promise, callback);
+  }
+  
+  /**
+   * Deprecated. Use newSession(data, ttl)
+   * 
+   * @deprecated
+   */
+  newWttl(data, ttl, callback) {
+    console.warn('token-session.newWttl(...) is deprectad. User newSession(...)')
+    let promise = new Promise ( (resolve, reject)=> {
+      let sid = this.generateSessionId();
+      this.setWttl(sid, data, ttl, (err, data) => {
+        if (!err) {
+          let res = {sessionId: sid, data: data};
+          resolve(res);
+        } else {
+          reject(err);
+        }
+      });  
+    });
+    return withCallback(promise, callback);
+  }  
+
+  //middleware for Express
+  express () {
+    const { crc32 } = require('crc');
+    //h = crc32(testString+x).toString(16);
+    let me = this;
+    return async function (req, res, next) {
+      let id;
+      let data;
+      //Query token-session header
+      if (req.headers[me.header]) {
+        id = req.headers[me.header];
+        //Retrive the data.
+        data = await me.get(id);
+        if (data) {
+          req[me.reqSession] = data;    //ej: req.tks = data
+        } else {
+          res.setHeader(me.header, id);  
+          req[me.reqSession] = {};   
+        }
+      } else {
+        id = generateSessionId();
+        res.setHeader(me.header, id);  
+        req[me.reqSession] = {};    
+      }
+      req[me.reqSession].id = id;
+      let oldCrc = crc32(JSON.stringify(req[me.reqSession]));
+
+     res.on('finish', function(err) {
+        let newCrc = crc32(JSON.stringify(req[me.reqSession]));
+        if (oldCrc!=newCrc) {
+          delete req[me.reqSession].id;
+          me.set(id, req[me.reqSession]);
+        } else {
+          me.touch(id);
+        }
+      });
+
+      next();
     }
   }
 }
