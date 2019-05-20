@@ -87,6 +87,9 @@ class TokenSession {
 
     if (opts.header) this.header = opts.header;
     else (this.header = 'token-session');
+
+    if (opts.cookie) this.cookie = opts.cookie;
+    else this.cookie = 'tks';
   }
   
   /**
@@ -373,8 +376,10 @@ class TokenSession {
       let id;
       let data;
       //Query token-session header
-      if (req.headers[me.header]) {
-        id = req.headers[me.header];
+      id = req.headers[me.header];
+      if (!id && req.cookies) id = req.cookies[me.cookie];
+
+      if (id) {
         //Retrive the data.
         data = await me.get(id);
         if (data) {
