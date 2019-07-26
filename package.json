@@ -9,8 +9,8 @@
     "type": "git",
     "url": "git+https://github.com/innovajs/token-session.git"
   },
-  "version": "1.1.1",
-  "_npmVersion": "1.1.1",
+  "version": "1.1.2",
+  "_npmVersion": "1.1.2",
   "keywords": [
     "sessions",
     "express",
@@ -24,12 +24,11 @@
   "main": "index.js",
   "dependencies": {
     "crc": "^3.8.0",
-    "session-memory-store": "^0.2.2",
+    "session-memory-store": "^1.0.0",
     "uid-safe": "^2.1.5"
   },
   "devDependencies": {
-    "connect-redis": "",
-    "connect-mongo": "",
-    "express-mysql-session": ""
+    "connect-mongo": "^3.0.0",
+    "connect-redis": "^3.4.2"
   }
 }
