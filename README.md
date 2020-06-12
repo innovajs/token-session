@@ -191,16 +191,36 @@ tokenSession.get(sid, (err, data) => {
 
 Notice that if option.autoTouch is true then session Id is also touched.
 
-### TokenSession.getNtouch(sid, callback)
+### TokenSession.getAndTouch(sid, callback)
 
 Fetch session data by the given sid and touches it.
 <br>The callback should be called as callback(err, data) once the session has been set in the store.
 
-*Notice that if option.autoTouch is true **get** and **getNtouch** are the same.*
+*Notice that if option.autoTouch is true **get** and **getAndTouch** are the same.*
 
 ```js
 
-tokenSession.getNtouch(sid, (err, data) => {
+tokenSession.getAndTouch(sid, (err, data) => {
+  if (!err) {
+    // Do something with data object
+    // Following the above example:
+    // data.name
+    // data.count
+ 
+  } else {
+    // Deal with the error
+    
+  }
+});
+```
+### TokenSession.getNotTouch(sid, callback)
+
+Fetch session data by the given sid without touches it.
+<br>The callback should be called as callback(err, data) once the session has been set in the store.
+
+```js
+
+tokenSession.getNotTouch(sid, (err, data) => {
   if (!err) {
     // Do something with data object
     // Following the above example:
@@ -260,7 +280,7 @@ tokenSession.regenerate(function(err, newSid) {
 
 Update the session period by adding a option.ttl time.
 
-Notice that **set(...)** and **getNtouch(...)** call automatically this method.
+Notice that **set(...)** and **getAndTouch(...)** call automatically this method.
 
 Also, if option.autoTouch is true (default value) then **get(...)** touch the sid too.
   

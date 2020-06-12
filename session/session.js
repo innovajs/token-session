@@ -165,6 +165,7 @@ class TokenSession {
   /**
    * Attempt to fetch session by the given sid.
    * Return a Promise or optionally, if presents, execute the callback.
+   * If autoTouch is setting getAndTouch is used.
    * 
    * @param {String} sid
    * @param {Function} callback
@@ -173,7 +174,7 @@ class TokenSession {
   get(sid, callback) {
     let promise = new Promise ( (resolve, reject) => {
       if (this.autoTouch) {
-        this.getNtouch(sid)
+        this.getAndTouch(sid)
         .then( (data) => {
           resolve(data);
         })
@@ -196,7 +197,7 @@ class TokenSession {
    * @param {Function} callback
    * @api public
    */
-  getNtouch(sid, callback) {
+  getAndTouch(sid, callback) {
     let promise = new Promise( (resolve, reject) => {
       this.store.get(sid, (err, data) => {
         if (!err) {
@@ -214,6 +215,25 @@ class TokenSession {
     return withCallback(promise, callback);
   }
   
+/**
+   * Attempt to fetch session by the given sid without touch it.
+   * Return a Promise or optionally, if presents, execute the callback.
+   * 
+   * @param {String} sid
+   * @param {Function} callback
+   * @api public
+   */
+  getNotTouch(sid, callback) {
+    let promise = new Promise ( (resolve, reject) => {
+      this.store.get(sid, (err, data) => {
+        if (err) reject(err);
+        else resolve(unWrap(data));
+      });
+    });
+    return withCallback(promise, callback); 
+  }
+
+
   /**
    * Commit the given session data associated with the given sid.
    * This method use default store ttl.
