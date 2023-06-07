@@ -336,7 +336,7 @@ class TokenSession {
    * @api public
    */
   touch(sid, data, callback) {
-    let promise = new Promise ( (resolve, response) => {
+    let promise = new Promise ( (resolve, reject) => {
       if (this.store.touch) {
         this.store.touch(sid, wrapData(data), (err) => {
           if (err) reject(err)
