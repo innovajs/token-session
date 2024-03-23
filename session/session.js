@@ -138,7 +138,7 @@ class TokenSession {
 
   /**
    * Create a new session with associated data.
-   * ttl is optional. If it is not present, the value specified in the configuration is used.
+   * ttl in seconds. It's ptional. If it is not present, the value specified in the configuration is used.
    * Callback is also optional. 
    * Return the session id in a Promise or optionally, if presents, execute the callback.
    * 
@@ -398,7 +398,14 @@ class TokenSession {
       //Query token-session header
       id = req.headers[me.header];
       if (!id && req.cookies) id = req.cookies[me.cookie];
-
+      if (id==null) {
+        //Attempt to get the session id from the query string
+        id = req.query[me.header];
+        if (id) {
+          //Remove the id from the query string
+          delete req.query[me.header];
+        }
+      }
       if (id) {
         //Retrive the data.
         data = await me.get(id);
