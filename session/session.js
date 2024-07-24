@@ -12,6 +12,12 @@ var MemoryStore = require('./memory');
 var Store = require('./store');
 var noop = function(){};
 
+/**
+ * Return a Promise or execute a callback if it is present. 
+ * @param {*} promise 
+ * @param {*} callabck 
+ * @returns 
+ */
 function withCallback(promise, callabck) {
   if (callabck) {
     promise
@@ -407,29 +413,40 @@ class TokenSession {
         }
       }
       if (id) {
+        res.setHeader(me.header, id);  
         //Retrive the data.
         data = await me.get(id);
-        if (data) {
-          req[me.reqSession] = data;    //ej: req.tks = data
-        } else {
-          res.setHeader(me.header, id);  
+        if (data!=null) {   //If data exists then req.tks = data
+          req[me.reqSession] = data;
+        } else {            //If there is no data, since id exists, set the header and empty data, req.tks = {}. I think I can change it because data empty is meaningless.          
           req[me.reqSession] = {};   
         }
+        req[me.reqSession].id = id;
       } else {
+        /**
+         * WARNING: It's a big change. I think it's not necessary to generate a new session for any request, every time.
+         * 
         id = generateSessionId();
         res.setHeader(me.header, id);  
-        req[me.reqSession] = {};    
+        req[me.reqSession] = {
+          id: id
+        };
+        */
+
+        req[me.reqSession] = {};
       }
-      req[me.reqSession].id = id;
-      let oldCrc = crc32(JSON.stringify(req[me.reqSession]));
+      
+      let oldCrc = req[me.reqSession]==null?null:crc32(JSON.stringify(req[me.reqSession]));
 
      res.on('finish', function(err) {
-        let newCrc = crc32(JSON.stringify(req[me.reqSession]));
+        let newCrc = req[me.reqSession]==null?null:crc32(JSON.stringify(req[me.reqSession]));
         if (oldCrc!=newCrc) {
           delete req[me.reqSession].id;
           me.set(id, req[me.reqSession]);
         } else {
-          me.touch(id);
+          if (id!=null) {
+            me.touch(id);
+          }
         }
       });
 
