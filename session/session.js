@@ -35,7 +35,8 @@ function wrapData(data) {
 }
 
 function unWrap(data) {
-  return data.data;
+  if ( data!=null && data.data!=null) return data.data;
+  else return null;
 }
 
 /**
