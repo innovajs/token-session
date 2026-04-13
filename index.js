@@ -1,1 +1,2 @@
-module.exports = require('./session/session');
+export * from './session/session.js';
+export { default } from './session/session.js';

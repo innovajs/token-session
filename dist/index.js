@@ -1,77 +1,67 @@
-/*!
- * token-session
- * version 1.1.0
- * Copyright(c) 2017 Gustavo Gretter
- * MIT Licensed
- */
+// session/session.js
+import { createRequire } from "node:module";
+import uidSafe from "uid-safe";
 
-import { createRequire } from 'node:module';
-import uidSafe from 'uid-safe';
-import MemoryStore from './memory.js';
-import Store from './store.js';
+// session/memory.js
+import memoryStore from "session-memory-store";
+var memory_default = memoryStore;
 
-const moduleRequire = createRequire(__MODULE_REQUIRE_TARGET__);
-const uid = uidSafe.sync;
-const noop = function(){};
+// session/store.js
+import { EventEmitter } from "node:events";
+import util from "node:util";
+function Store() {
+  EventEmitter.call(this);
+}
+util.inherits(Store, EventEmitter);
+var store_default = Store;
 
+// session/session.js
+var moduleRequire = createRequire(import.meta.url);
+var uid = uidSafe.sync;
 function withCallback(promise, callabck) {
   if (callabck) {
-    promise
-      .then(res => callabck(null, res))
-      .catch(callabck);
+    promise.then((res) => callabck(null, res)).catch(callabck);
   }
   return promise;
 }
-
 function wrapData(data) {
   return {
     cookie: { maxAge: 0 },
-    data: data
+    data
   };
 }
-
 function unWrap(data) {
   if (data != null && data.data != null) return data.data;
   else return null;
 }
-
 function generateSessionId() {
   return uid(24);
 }
-
-class TokenSession {
-
+var TokenSession = class _TokenSession {
   constructor(options) {
     const opts = options || {};
     this.generateSessionId = opts.genid || generateSessionId;
-    if (typeof this.generateSessionId !== 'function') {
-      throw new TypeError('genid option must be a function');
+    if (typeof this.generateSessionId !== "function") {
+      throw new TypeError("genid option must be a function");
     }
     if (opts.store) this.store = opts.store;
     else {
-      this.store = new MemoryStore(TokenSession)({
+      this.store = new memory_default(_TokenSession)({
         expires: 1800,
         checkperiod: 60
       });
     }
-
-    this.autoTouch = ((typeof options.autoTouch === 'undefined') ? true : options.autoTouch);
-
+    this.autoTouch = typeof options.autoTouch === "undefined" ? true : options.autoTouch;
     if (options.hackttl) this.hackttl = options.hackttl;
     else this.hackttl = this._defaultHackTTL;
-
     this.cookie = { maxAge: 0 };
-
     if (opts.reqSession) this.reqSession = opts.reqSession;
-    else this.reqSession = 'tks';
-
+    else this.reqSession = "tks";
     if (opts.header) this.header = opts.header;
-    else (this.header = 'token-session');
-
+    else this.header = "token-session";
     if (opts.cookie) this.cookie = opts.cookie;
-    else this.cookie = 'tks';
+    else this.cookie = "tks";
   }
-
   _defaultHackTTL(obj, ttl) {
     if (obj.store) {
       if (obj.store.ttl) {
@@ -94,7 +84,6 @@ class TokenSession {
     }
     return null;
   }
-
   newSessionId(callback) {
     const promise = new Promise((resolve, reject) => {
       const sid = this.generateSessionId();
@@ -104,12 +93,11 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   newSession(data, ttl, callback) {
     const promise = new Promise((resolve, reject) => {
       const sid = this.generateSessionId();
       let ret;
-      if (typeof ttl == 'number') {
+      if (typeof ttl == "number") {
         ret = this.setWttl(sid, data, ttl);
       } else {
         ret = this.set(sid, data);
@@ -120,15 +108,12 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   get(sid, callback) {
     const promise = new Promise((resolve, reject) => {
       if (this.autoTouch) {
-        this.getAndTouch(sid)
-        .then((data) => {
+        this.getAndTouch(sid).then((data) => {
           resolve(data);
-        })
-        .catch(reject);
+        }).catch(reject);
       } else {
         this.store.get(sid, (err, data) => {
           if (err) reject(err);
@@ -138,7 +123,6 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   getAndTouch(sid, callback) {
     const promise = new Promise((resolve, reject) => {
       this.store.get(sid, (err, data) => {
@@ -156,7 +140,6 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   getNotTouch(sid, callback) {
     const promise = new Promise((resolve, reject) => {
       this.store.get(sid, (err, data) => {
@@ -166,7 +149,6 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   set(sid, data, callback) {
     const promise = new Promise((resolve, reject) => {
       this.store.set(sid, wrapData(data), (err) => {
@@ -176,21 +158,19 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   setWttl(sid, data, ttl, callback) {
     const promise = new Promise((resolve, reject) => {
       const oldttl = this.hackttl(this);
       this.hackttl(this, ttl);
       if (!data.cookie) data.cookie = { maxAge: this.maxAge };
-      this.store.set(sid, wrapData(data), (err, data) => {
+      this.store.set(sid, wrapData(data), (err, data2) => {
         this.hackttl(this, oldttl);
         if (err) reject;
-        else resolve(data);
+        else resolve(data2);
       });
     });
     return withCallback(promise, callback);
   }
-
   destroy(sid, callback) {
     const promise = new Promise((resolve, reject) => {
       this.store.destroy(sid, (err, data) => {
@@ -200,23 +180,17 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   regenerate(sid, data, callback) {
     const promise = new Promise((resolve, reject) => {
-      this.destroy(sid)
-      .then((result) => {
+      this.destroy(sid).then((result) => {
         const newSid = this.generateSessionId();
-        this.set(newSid, data)
-        .then(() => {
+        this.set(newSid, data).then(() => {
           resolve(newSid);
-        })
-        .catch(reject);
-      })
-      .catch(reject);
+        }).catch(reject);
+      }).catch(reject);
     });
     return withCallback(promise, callback);
   }
-
   touch(sid, data, callback) {
     const promise = new Promise((resolve, reject) => {
       if (this.store.touch) {
@@ -229,27 +203,23 @@ class TokenSession {
       }
     });
   }
-
   new(data, callback) {
-    console.warn('token-session.new(...) is deprectad. User newSession(...)');
+    console.warn("token-session.new(...) is deprectad. User newSession(...)");
     const promise = new Promise((resolve, reject) => {
       const sid = this.generateSessionId();
-      this.set(sid, data)
-      .then(() => {
-        resolve({ sessionId: sid, data: data });
-      })
-      .catch(reject);
+      this.set(sid, data).then(() => {
+        resolve({ sessionId: sid, data });
+      }).catch(reject);
     });
     return withCallback(promise, callback);
   }
-
   newWttl(data, ttl, callback) {
-    console.warn('token-session.newWttl(...) is deprectad. User newSession(...)');
+    console.warn("token-session.newWttl(...) is deprectad. User newSession(...)");
     const promise = new Promise((resolve, reject) => {
       const sid = this.generateSessionId();
-      this.setWttl(sid, data, ttl, (err, data) => {
+      this.setWttl(sid, data, ttl, (err, data2) => {
         if (!err) {
-          const res = { sessionId: sid, data: data };
+          const res = { sessionId: sid, data: data2 };
           resolve(res);
         } else {
           reject(err);
@@ -258,11 +228,10 @@ class TokenSession {
     });
     return withCallback(promise, callback);
   }
-
   express() {
-    const { crc32 } = moduleRequire('crc');
+    const { crc32 } = moduleRequire("crc");
     const me = this;
-    return async function (req, res, next) {
+    return async function(req, res, next) {
       let id;
       let data;
       id = req.headers[me.header];
@@ -285,10 +254,8 @@ class TokenSession {
       } else {
         req[me.reqSession] = {};
       }
-
       const oldCrc = req[me.reqSession] == null ? null : crc32(JSON.stringify(req[me.reqSession]));
-
-      res.on('finish', function(err) {
+      res.on("finish", function(err) {
         const newCrc = req[me.reqSession] == null ? null : crc32(JSON.stringify(req[me.reqSession]));
         if (oldCrc != newCrc) {
           delete req[me.reqSession].id;
@@ -299,16 +266,26 @@ class TokenSession {
           }
         }
       });
-
       next();
     };
   }
-}
-
-TokenSession.Store = Store;
-TokenSession.MemoryStore = MemoryStore;
-
-void noop;
-
-export { Store, MemoryStore };
-export default TokenSession;
+};
+TokenSession.Store = store_default;
+TokenSession.MemoryStore = memory_default;
+var session_default = TokenSession;
+export {
+  memory_default as MemoryStore,
+  store_default as Store,
+  session_default as default
+};
+/*!
+ * Connect - session - Store
+ * Copyright(c) 2017 Gustavo Gretter
+ * MIT Licensed
+ */
+/*!
+ * token-session
+ * version 1.1.0
+ * Copyright(c) 2017 Gustavo Gretter
+ * MIT Licensed
+ */

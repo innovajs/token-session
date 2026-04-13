@@ -21,7 +21,25 @@
   ],
   "license": "MIT",
   "homepage": "https://github.com/innovajs/token-session#readme",
-  "main": "index.js",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "prepack": "npm run build",
+    "validate": "node ./test/dual-mode.mjs"
+  },
   "dependencies": {
     "crc": "^3.8.0",
     "session-memory-store": "^1.0.0",
@@ -29,6 +47,7 @@
   },
   "devDependencies": {
     "connect-mongo": "^3.0.0",
-    "connect-redis": "^3.4.2"
+    "connect-redis": "^3.4.2",
+    "esbuild": "^0.25.12"
   }
 }

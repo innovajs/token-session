@@ -4,34 +4,13 @@
  * MIT Licensed
  */
 
-'use strict';
+import { EventEmitter } from 'node:events';
+import util from 'node:util';
 
-/**
- * Module dependencies.
- * @private
- */
-
-var EventEmitter = require('events').EventEmitter;
-var util = require('util');
-
-
-/**
- * Abstract base class for session stores.
- * @public
- */
-function Store () {
+function Store() {
   EventEmitter.call(this);
 }
 
-/**
- * Inherit from EventEmitter.
- */
 util.inherits(Store, EventEmitter);
 
-/**
- * Module exports.
- * @public
- */
-
-module.exports = Store;
-
+export default Store;

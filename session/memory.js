@@ -1,1 +1,3 @@
-module.exports = require('session-memory-store');
+import memoryStore from 'session-memory-store';
+
+export default memoryStore;
